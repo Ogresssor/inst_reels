@@ -9,6 +9,7 @@ import random
 import subprocess
 
 import imageio_ffmpeg
+import music
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -193,19 +194,22 @@ BLACK = Image.new("RGB", (W, H), (20, 0, 25))
 
 # ---------- scenario ----------
 # (длительность, камера start (cx,cy,h), камера end, тексты)
+# Длительности кратны долям музыки: смены сцен попадают на сильные доли.
+B = music.BEAT
 SCENES = [
     # 1. Хук: крупно шарики, отъезд
-    (3.0, (470, 330, 560), (480, 470, 900),
+    (7 * B, (470, 330, 560), (480, 470, 900),
      [(["Этот подарок", "не купить в магазине"], 70, PINK, 0.25, 1060)]),
     # 2. Надпись и бант
-    (2.6, (230, 690, 600), (360, 860, 720),
+    (6 * B, (230, 690, 600), (360, 860, 720),
      [(["Ручная работа"], 72, PURPLE, 0.2, 330),
       (["каждая деталь — с любовью"], 50, (255, 255, 255), 0.7, 470)]),
     # 3. Сердечки, девушка, конверт
-    (2.8, (620, 880, 620), (430, 1050, 760),
+    (6 * B, (620, 880, 620), (430, 1050, 760),
      [(["Под любой повод", "и любимые цвета"], 62, PINK, 0.2, 360)]),
 ]
-FINAL_DUR = 4.2
+FINAL_DUR = (music.TOTAL_BEATS - music.FINAL_BEAT) * B
+assert abs(sum(x[0] for x in SCENES) - music.FINAL_BEAT * B) < 1e-9
 
 
 def cam(a, b, t):
@@ -238,9 +242,9 @@ def render():
     ff = imageio_ffmpeg.get_ffmpeg_exe()
     cmd = [ff, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(FPS), "-i", "-",
-           "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+           "-i", music.write_wav(os.path.join(os.path.dirname(OUT), "music.wav")),
            "-shortest", "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", OUT]
+           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", OUT]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
 
     total = sum(s[0] for s in SCENES) + FINAL_DUR
