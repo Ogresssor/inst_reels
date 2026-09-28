@@ -1,1 +1,3 @@
 output/music.wav
+output/_*.wav
+__pycache__/
